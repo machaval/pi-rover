@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Class-Path: pi4j-gpio-extension-0.0.5.jar pi4j-core-0.0.5.jar
+Main-Class: org.mule.test.ControlGpioExample
+
