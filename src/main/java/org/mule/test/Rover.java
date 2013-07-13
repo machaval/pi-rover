@@ -9,8 +9,6 @@ import com.pi4j.io.gpio.GpioPinDigitalInput;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
-import com.pi4j.io.gpio.event.GpioPinDigitalStateChangeEvent;
-import com.pi4j.io.gpio.event.GpioPinListenerDigital;
 
 public class Rover
 {
@@ -56,26 +54,44 @@ public class Rover
     public double measureDistance()
     {
 
-        final Timer timer = new Timer();
-        final GpioPinListenerDigital listenerDigital = new GpioPinListenerDigital()
+        int stateIndex = 0;
+        long start = 0;
+        long end = 0;
+        trigger.setState(PinState.HIGH);
+        trigger.setState(PinState.LOW);
+
+
+        while (stateIndex < 2)
         {
-            public void handleGpioPinDigitalStateChangeEvent(GpioPinDigitalStateChangeEvent event)
+
+            if (echo.isHigh())
             {
-                if (event.getState().isHigh())
+                if (stateIndex == 0)
                 {
-                    timer.start();
+                    start = System.nanoTime();
+                    stateIndex++;
                 }
                 else
                 {
-                    timer.end();
+                    continue;
                 }
-
             }
-        };
-        echo.addListener(listenerDigital);
-        trigger.pulse(2, true);
-        double result = (timer.timeNano() * 0.0000343) / 2; //time multiplied by sound distance  divided by two because is go and return
-        echo.removeListener(listenerDigital);
+            else
+            {
+                if (stateIndex == 1)
+                {
+                    end = System.nanoTime();
+                    stateIndex++;
+                }
+                else
+                {
+                    return -1;
+                }
+            }
+        }
+
+        long nanoTime = end - start;
+        double result = (nanoTime * 0.0000343);
         return result;
     }
 
