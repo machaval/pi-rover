@@ -83,11 +83,15 @@ public class ControlGpioExample
                 rover.end();
                 return;
             }
-            else if ("distance".equalsIgnoreCase(s))
+            else if ("d".equalsIgnoreCase(s))
             {
-                double distance = rover.measureDistance();
-                System.out.println("distance = " + distance + "cm");
-                return;
+                int i = 0;
+                while (i < 5)
+                {
+                    double distance = rover.measureDistance();
+                    System.out.println("distance = " + distance + "cm");
+                    i++;
+                }
             }
             else if ("printInfo".equalsIgnoreCase(s))
             {

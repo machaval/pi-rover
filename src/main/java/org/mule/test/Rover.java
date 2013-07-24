@@ -10,10 +10,15 @@ import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class Rover
 {
 
 
+    public static final int THRESHOLD = 2;
+    public static final int NUMBER_SAMPLES = 10;
     private GpioController gpio;
     private GpioPinDigitalOutput goLeftEngine;
     private GpioPinDigitalOutput goRightEngine;
@@ -51,48 +56,96 @@ public class Rover
         return new RoverInfo();
     }
 
+    private void waitNS(long waitTime)
+    {
+        long start = System.nanoTime();
+        long end;
+        do
+        {
+            end = System.nanoTime();
+        }
+        while (start + waitTime >= end);
+    }
+
     public double measureDistance()
     {
 
-        int stateIndex = 0;
+        double[] values = new double[NUMBER_SAMPLES];
+        for (int i = 0; i < values.length; i++)
+        {
+            values[i] = doMeasureDistance();
+        }
+        return getMode(values); //Calculate the mode
+    }
+
+    private double getMode(double[] values)
+    {
+        final HashMap<Double, Integer> freqs = new HashMap<Double, Integer>();
+
+        for (double val : values)
+        {
+            boolean updated = false;
+            for (Double key : freqs.keySet())
+            {
+                if (Math.abs(key - val) < THRESHOLD)
+                {
+                    Integer integer = freqs.get(key);
+                    freqs.put(key, integer + 1);
+                    updated = true;
+                }
+            }
+            if (!updated)
+            {
+                freqs.put(val, 1);
+            }
+        }
+
+        double mode = 0;
+        int maxFreq = 0;
+
+        for (Map.Entry<Double, Integer> entry : freqs.entrySet())
+        {
+            int freq = entry.getValue();
+            if (freq > maxFreq)
+            {
+                maxFreq = freq;
+                mode = entry.getKey();
+            }
+        }
+
+        return mode;
+    }
+
+    private double doMeasureDistance()
+    {
         long start = 0;
         long end = 0;
         trigger.setState(PinState.HIGH);
+        waitNS(20L);
         trigger.setState(PinState.LOW);
 
+        long startMethod = System.nanoTime();
 
-        while (stateIndex < 2)
+        while (echo.isLow())
         {
-
-            if (echo.isHigh())
+            start = System.nanoTime();
+            if ((startMethod - start) > 5000000)  //Bigger than 5 milliseconds return
             {
-                if (stateIndex == 0)
-                {
-                    start = System.nanoTime();
-                    stateIndex++;
-                }
-                else
-                {
-                    continue;
-                }
+                return -1;
             }
-            else
+        }
+        while (echo.isHigh())
+        {
+            end = System.nanoTime();
+            if ((startMethod - end) > 20000000)   //Bigger than 20 milliseconds return
             {
-                if (stateIndex == 1)
-                {
-                    end = System.nanoTime();
-                    stateIndex++;
-                }
-                else
-                {
-                    return -1;
-                }
+                return -1;
             }
         }
 
         long nanoTime = end - start;
-        double result = (nanoTime * 0.0000343);
-        return result;
+        System.out.println("nanoTime = " + nanoTime);
+        return (nanoTime * (0.0000343)) / 2;
     }
 
     public void move(String direction)
